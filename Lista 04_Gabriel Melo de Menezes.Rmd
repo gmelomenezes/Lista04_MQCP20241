@@ -1,0 +1,76 @@
+---
+title: "Lista 04_MQCP 2024.1"
+author: "Gabriel Melo de Menezes"
+date: "2024-06-25"
+output: ioslides_presentation
+---
+
+```{r pacotes e banco, include=FALSE}
+
+knitr::opts_chunk$set(echo = FALSE)
+
+pacman::p_load("tidyverse","haven","lubridate","janitor","readxl", "infer", "credentials")
+
+credentials::set_github_pat()
+
+lapop <- read_dta("dados/Grand_Merge_2004-2023_LAPOP_AmericasBarometer_v1.0_w.dta")
+
+```
+
+## Realizando a Manipulação dos Dados
+
+Operacionalizando o antipartidarismo através das medidas de confiança nos partidos e partidarismo.
+
+```{r manipulacao, include = TRUE}
+
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
+
+lapop2 <- lapop %>%
+  mutate(pais = case_when(pais != 16 ~ as_factor(pais),
+                          pais == 16 ~ "Venezuela",
+                          pais == 24 ~ "Guyana")) %>%
+  filter(pais %in% c("Argentina", "Brasil", "Colombia", "Guatemala", "El Salvador", "México",
+                     "Nicaragua", "Costa Rica", "Panamá", "Ecuador", "Bolivia", "Perú",
+                     "Paraguay", "Chile", "Uruguay", "República Dominicana", "Venezuela"),
+         b21 >= 0,
+         year > 2004) %>%
+  mutate(party_id = case_when(vb10 == 1 ~ 1,
+                              vb10 != 1 ~ 0),
+         desconf_part = case_when(b21 > 3 ~ 0,
+                                  b21 <= 3 ~ 1),
+         anti_part = case_when((party_id == 0 & desconf_part == 1) ~ 1,
+                               party_id == 1 ~ 0,
+                               desconf_part == 0 ~ 0)) %>%
+  select(pais, wave, year, idnum, b21, vb10, party_id, desconf_part, anti_part) %>%
+  group_by(pais, wave) %>%
+  summarize(anti_part = mean(anti_part, na.rm = TRUE)) %>%
+  mutate(anti_part = na_if(anti_part, 0),
+         anti_part = round(anti_part * 100, 1)) %>%
+  filter(!is.na(anti_part))
+
+```
+
+## Gerando a Distribuição e Intervalos de Confiança
+
+```{r intevalos de confianca, echo = TRUE}
+
+anti_part_btd <- lapop2 %>% 
+  specify(response = anti_part) %>% 
+  generate(reps = 1000) %>% 
+  calculate(stat = "mean")
+
+intervalos_conf <- anti_part_btd %>% 
+  get_confidence_interval(level = 0.95, type = "percentile")
+
+```
+
+## Plotando os Intervalos de Confiança
+
+Usando o pacote "infer" e a função "visualize":
+
+```{r plot, echo = FALSE}
+
+visualize(anti_part_btd) + 
+  shade_confidence_interval(endpoints = intervalos_conf)
+
+```
