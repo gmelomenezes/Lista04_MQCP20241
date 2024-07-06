@@ -74,3 +74,7 @@ visualize(anti_part_btd) +
   shade_confidence_interval(endpoints = intervalos_conf)
 
 ```
+
+## Declaração de Hipótese
+
+A hipótese de trabalho é de que um aumento na variável de antipartidarismo causaria um aumento na variável de volatilidade eleitoral, tanto legislativa quanto presidencial, nos países da América Latina.
